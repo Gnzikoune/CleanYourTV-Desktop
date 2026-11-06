@@ -1,0 +1,17 @@
+# PyInstaller & Build artifacts
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+
+# Local User Configurations & ADB Keys
+.cleanyourtv_desktop/
+keys/
+backup/
+shots/
+
+# Virtual Environments
+venv/
+.venv/
+env/
