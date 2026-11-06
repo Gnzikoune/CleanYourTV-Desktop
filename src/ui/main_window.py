@@ -18,10 +18,12 @@ from src.services.debloat_service import DebloatService
 from src.services.system_service import SystemService
 from src.services.screen_service import ScreenService
 from src.services.network_scanner import NetworkScannerService
+from src.services.update_checker import UpdateCheckerService
 from src.ui.components.tab_remote import RemoteTab
 from src.ui.components.tab_debloat import DebloatTab
 from src.ui.components.tab_system import SystemTab
 from src.ui.components.tab_themes import ThemesTab
+from src.ui.components.update_banner import UpdateBanner
 
 
 class MainWindow(ctk.CTk):
@@ -31,7 +33,7 @@ class MainWindow(ctk.CTk):
         super().__init__()
 
         self.title("CleanYourTV — Desktop Manager")
-        self.geometry("1020x760")
+        self.geometry("1020x780")
         self.minsize(880, 680)
         self.configure(fg_color=COLOR_BG_MAIN)
 
@@ -54,6 +56,7 @@ class MainWindow(ctk.CTk):
 
         self._build_shell()
         self._load_saved_state()
+        self._check_for_updates_async()
 
     def run_async(self, fn: Callable[..., Any], *args: Any) -> None:
         """Execute background task without blocking UI thread."""
@@ -119,6 +122,10 @@ class MainWindow(ctk.CTk):
         )
         self.lbl_device_info.pack(padx=12, pady=6, anchor="w")
 
+        # Container for Update Banner (if available)
+        self.update_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.update_container.pack(fill="x", padx=16, pady=(0, 8))
+
         # 3. Navigation Tabs
         self.tabview = ctk.CTkTabview(
             self, fg_color=COLOR_BG_MAIN, segmented_button_fg_color=COLOR_BG_CARD,
@@ -146,6 +153,16 @@ class MainWindow(ctk.CTk):
         if saved_ip:
             self.entry_ip.insert(0, saved_ip)
 
+    def _check_for_updates_async(self) -> None:
+        def _task() -> None:
+            has_update, tag, dl_url, _ = UpdateCheckerService.check_for_updates()
+            if has_update and dl_url:
+                def _show_banner() -> None:
+                    banner = UpdateBanner(self.update_container, self, tag, dl_url)
+                    banner.pack(fill="x")
+                self.after(0, _show_banner)
+        self.run_async(_task)
+
     def _on_scan_network(self) -> None:
         self.set_status("Scan réseau local en cours (recherche des ports ADB 5555)...")
         self.btn_scan.configure(state="disabled", text="Scan...")
@@ -158,15 +175,13 @@ class MainWindow(ctk.CTk):
                     first_ip = devices[0][0]
                     self.entry_ip.delete(0, "end")
                     self.entry_ip.insert(0, first_ip)
-                    count = len(devices)
-                    msg = f"🟢 {count} appareil(s) ADB trouvé(s) ! IP pré-remplie : {first_ip}"
+                    msg = f"🟢 {len(devices)} appareil(s) ADB trouvé(s) ! IP pré-remplie : {first_ip}"
                     self.set_status(msg)
                     self.lbl_device_info.configure(text=msg, text_color="#4CC2FF")
                 else:
                     self.set_status("Aucun appareil ADB détecté sur le sous-réseau local.")
                     messagebox.showinfo("Scan Réseau", "Aucun téléviseur avec le port 5555 actif n'a été détecté.\nVérifiez que la TV est allumée et sur le même Wi-Fi.")
             self.after(0, _apply)
-
         self.run_async(_task)
 
     def _on_toggle_connect(self) -> None:
@@ -211,7 +226,6 @@ class MainWindow(ctk.CTk):
                     self.lbl_device_info.configure(text=f"🔴 Échec de connexion : {msg}", text_color="#FFA0A0")
                     self.set_status(f"Erreur: {msg}")
             self.after(0, _apply_ui)
-
         self.run_async(_task)
 
     def on_disconnected(self) -> None:
