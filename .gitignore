@@ -10,6 +10,8 @@ __pycache__/
 keys/
 backup/
 shots/
+tools/
+*.apk
 
 # Virtual Environments
 venv/

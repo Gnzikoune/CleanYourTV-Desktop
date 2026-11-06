@@ -81,3 +81,4 @@ class AudioService:
         if ok:
             return True, "Page AudioRelay ouverte sur le Play Store de la TV."
         return False, "Échec de l'ouverture du Play Store sur la TV."
+

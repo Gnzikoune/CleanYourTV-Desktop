@@ -7,7 +7,7 @@ import urllib.request
 import webbrowser
 from typing import Optional, Tuple
 
-CURRENT_VERSION = "v1.0.0"
+CURRENT_VERSION = "v1.1.0"
 REPO_API_URL = "https://api.github.com/repos/Gnzikoune/CleanYourTV-Desktop/releases/latest"
 
 
