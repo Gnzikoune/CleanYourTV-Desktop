@@ -5,6 +5,7 @@ Main Desktop Application Window (Microsoft Fluent 2 Design)
 import os
 import threading
 from tkinter import messagebox
+from typing import Any, Callable
 import customtkinter as ctk
 from PIL import Image
 
@@ -25,7 +26,7 @@ from src.ui.components.tab_themes import ThemesTab
 class MainWindow(ctk.CTk):
     """Fluent 2 Desktop Application Window."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.title("CleanYourTV — Desktop Manager")
@@ -40,7 +41,7 @@ class MainWindow(ctk.CTk):
         self.screen_service = ScreenService(self.adb)
 
         self.config = ConfigManager.load()
-        self.connected_host = ""
+        self.connected_host: str = ""
 
         # Window Icon
         icon_path = get_resource_path(os.path.join("assets", "icon.ico"))
@@ -53,15 +54,15 @@ class MainWindow(ctk.CTk):
         self._build_shell()
         self._load_saved_state()
 
-    def run_async(self, fn, *args):
+    def run_async(self, fn: Callable[..., Any], *args: Any) -> None:
         """Execute background task without blocking UI thread."""
         threading.Thread(target=fn, args=args, daemon=True).start()
 
-    def set_status(self, text: str):
-        """Update bottom status bar message."""
-        self.status_bar.configure(text=text)
+    def set_status(self, text: str) -> None:
+        """Update bottom status bar message (thread-safe)."""
+        self.after(0, lambda: self.status_bar.configure(text=text))
 
-    def _build_shell(self):
+    def _build_shell(self) -> None:
         # 1. Top Connection Bar
         top_frame = ctk.CTkFrame(self, fg_color=COLOR_BG_CARD, corner_radius=10)
         top_frame.pack(fill="x", padx=16, pady=(16, 8))
@@ -133,12 +134,12 @@ class MainWindow(ctk.CTk):
         self.status_bar = ctk.CTkLabel(self, text="Prêt.", font=ctk.CTkFont(size=12), text_color="#888888")
         self.status_bar.pack(side="bottom", fill="x", padx=16, pady=(0, 6))
 
-    def _load_saved_state(self):
+    def _load_saved_state(self) -> None:
         saved_ip = self.config.get("last_ip", "")
         if saved_ip:
             self.entry_ip.insert(0, saved_ip)
 
-    def _on_toggle_connect(self):
+    def _on_toggle_connect(self) -> None:
         if self.adb.is_connected():
             self.adb.disconnect()
             self.on_disconnected()
@@ -159,29 +160,33 @@ class MainWindow(ctk.CTk):
         self.set_status(f"Connexion à {host}:{port}...")
         self.btn_connect.configure(state="disabled", text="En cours...")
 
-        def _task():
+        def _task() -> None:
             ok, msg = self.adb.connect(host, port)
-            self.btn_connect.configure(state="normal")
-            if ok:
-                self.connected_host = host
-                self.config["last_ip"] = host
-                ConfigManager.save(self.config)
+            
+            def _apply_ui() -> None:
+                self.btn_connect.configure(state="normal")
+                if ok:
+                    self.connected_host = host
+                    self.config["last_ip"] = host
+                    ConfigManager.save(self.config)
 
-                props = self.adb.get_device_props()
-                desc = f"{props['brand']} {props['model']} (Android {props['version']} / SDK {props['sdk']})"
+                    props = self.adb.get_device_props()
+                    desc = f"{props['brand']} {props['model']} (Android {props['version']} / SDK {props['sdk']})"
 
-                self.btn_connect.configure(text="Déconnecter", fg_color=COLOR_DANGER, hover_color=COLOR_DANGER_HOVER)
-                self.lbl_device_info.configure(text=f"🟢 Connecté à : {desc} — IP : {host}:{port}", text_color="#4CC2FF")
-                self.set_status(f"Connecté avec succès à {desc}.")
-                self.tab_debloat.refresh_list()
-            else:
-                self.btn_connect.configure(text="⚡ Connecter", fg_color=COLOR_ACCENT)
-                self.lbl_device_info.configure(text=f"🔴 Échec de connexion : {msg}", text_color="#FFA0A0")
-                self.set_status(f"Erreur: {msg}")
+                    self.btn_connect.configure(text="Déconnecter", fg_color=COLOR_DANGER, hover_color=COLOR_DANGER_HOVER)
+                    self.lbl_device_info.configure(text=f"🟢 Connecté à : {desc} — IP : {host}:{port}", text_color="#4CC2FF")
+                    self.set_status(f"Connecté avec succès à {desc}.")
+                    self.tab_debloat.refresh_list()
+                else:
+                    self.btn_connect.configure(text="⚡ Connecter", fg_color=COLOR_ACCENT)
+                    self.lbl_device_info.configure(text=f"🔴 Échec de connexion : {msg}", text_color="#FFA0A0")
+                    self.set_status(f"Erreur: {msg}")
+
+            self.after(0, _apply_ui)
 
         self.run_async(_task)
 
-    def on_disconnected(self):
+    def on_disconnected(self) -> None:
         """Reset connection UI controls."""
         self.btn_connect.configure(text="⚡ Connecter", fg_color=COLOR_ACCENT)
         self.lbl_device_info.configure(text="⚪ Déconnecté.", text_color="#888888")
