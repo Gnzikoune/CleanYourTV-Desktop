@@ -17,6 +17,7 @@ from src.infra.adb_client import AdbClient
 from src.services.debloat_service import DebloatService
 from src.services.system_service import SystemService
 from src.services.screen_service import ScreenService
+from src.services.network_scanner import NetworkScannerService
 from src.ui.components.tab_remote import RemoteTab
 from src.ui.components.tab_debloat import DebloatTab
 from src.ui.components.tab_system import SystemTab
@@ -30,8 +31,8 @@ class MainWindow(ctk.CTk):
         super().__init__()
 
         self.title("CleanYourTV — Desktop Manager")
-        self.geometry("980x760")
-        self.minsize(860, 680)
+        self.geometry("1020x760")
+        self.minsize(880, 680)
         self.configure(fg_color=COLOR_BG_MAIN)
 
         # Core Services
@@ -67,7 +68,6 @@ class MainWindow(ctk.CTk):
         top_frame = ctk.CTkFrame(self, fg_color=COLOR_BG_CARD, corner_radius=10)
         top_frame.pack(fill="x", padx=16, pady=(16, 8))
 
-        # Title & Icon
         t_box = ctk.CTkFrame(top_frame, fg_color="transparent")
         t_box.pack(side="left", padx=12, pady=10)
 
@@ -86,12 +86,19 @@ class MainWindow(ctk.CTk):
         conn_box = ctk.CTkFrame(top_frame, fg_color="transparent")
         conn_box.pack(side="right", padx=12, pady=10)
 
-        ctk.CTkLabel(conn_box, text="IP TV :", font=ctk.CTkFont(size=12), text_color="#A0A0A0").pack(side="left", padx=(0, 4))
-        self.entry_ip = ctk.CTkEntry(conn_box, width=150, height=32, placeholder_text="192.168.1.50")
+        self.btn_scan = ctk.CTkButton(
+            conn_box, text="🔍 Scan Réseau", width=110, height=32,
+            font=ctk.CTkFont(size=11, weight="bold"), fg_color="#333333", hover_color="#444444",
+            command=self._on_scan_network
+        )
+        self.btn_scan.pack(side="left", padx=(0, 10))
+
+        ctk.CTkLabel(conn_box, text="IP :", font=ctk.CTkFont(size=12), text_color="#A0A0A0").pack(side="left", padx=(0, 4))
+        self.entry_ip = ctk.CTkEntry(conn_box, width=140, height=32, placeholder_text="192.168.1.50")
         self.entry_ip.pack(side="left", padx=(0, 8))
 
         ctk.CTkLabel(conn_box, text="Port :", font=ctk.CTkFont(size=12), text_color="#A0A0A0").pack(side="left", padx=(0, 4))
-        self.entry_port = ctk.CTkEntry(conn_box, width=65, height=32)
+        self.entry_port = ctk.CTkEntry(conn_box, width=60, height=32)
         self.entry_port.insert(0, "5555")
         self.entry_port.pack(side="left", padx=(0, 8))
 
@@ -107,7 +114,7 @@ class MainWindow(ctk.CTk):
         self.device_badge.pack(fill="x", padx=16, pady=(0, 8))
         self.lbl_device_info = ctk.CTkLabel(
             self.device_badge,
-            text="⚪ Non connecté — Veuillez renseigner l'adresse IP de votre téléviseur Android ci-dessus.",
+            text="⚪ Non connecté — Renseignez l'IP ci-dessus ou cliquez sur 'Scan Réseau'.",
             font=ctk.CTkFont(size=12), text_color="#888888"
         )
         self.lbl_device_info.pack(padx=12, pady=6, anchor="w")
@@ -139,6 +146,29 @@ class MainWindow(ctk.CTk):
         if saved_ip:
             self.entry_ip.insert(0, saved_ip)
 
+    def _on_scan_network(self) -> None:
+        self.set_status("Scan réseau local en cours (recherche des ports ADB 5555)...")
+        self.btn_scan.configure(state="disabled", text="Scan...")
+
+        def _task() -> None:
+            devices = NetworkScannerService.scan_subnet()
+            def _apply() -> None:
+                self.btn_scan.configure(state="normal", text="🔍 Scan Réseau")
+                if devices:
+                    first_ip = devices[0][0]
+                    self.entry_ip.delete(0, "end")
+                    self.entry_ip.insert(0, first_ip)
+                    count = len(devices)
+                    msg = f"🟢 {count} appareil(s) ADB trouvé(s) ! IP pré-remplie : {first_ip}"
+                    self.set_status(msg)
+                    self.lbl_device_info.configure(text=msg, text_color="#4CC2FF")
+                else:
+                    self.set_status("Aucun appareil ADB détecté sur le sous-réseau local.")
+                    messagebox.showinfo("Scan Réseau", "Aucun téléviseur avec le port 5555 actif n'a été détecté.\nVérifiez que la TV est allumée et sur le même Wi-Fi.")
+            self.after(0, _apply)
+
+        self.run_async(_task)
+
     def _on_toggle_connect(self) -> None:
         if self.adb.is_connected():
             self.adb.disconnect()
@@ -148,7 +178,7 @@ class MainWindow(ctk.CTk):
         host = self.entry_ip.get().strip()
         port_s = self.entry_port.get().strip() or "5555"
         if not host:
-            messagebox.showwarning("Adresse requise", "Veuillez entrer l'adresse IP de votre téléviseur.")
+            messagebox.showwarning("Adresse requise", "Veuillez entrer l'IP ou lancer un Scan Réseau.")
             return
 
         try:
@@ -162,7 +192,6 @@ class MainWindow(ctk.CTk):
 
         def _task() -> None:
             ok, msg = self.adb.connect(host, port)
-            
             def _apply_ui() -> None:
                 self.btn_connect.configure(state="normal")
                 if ok:
@@ -181,7 +210,6 @@ class MainWindow(ctk.CTk):
                     self.btn_connect.configure(text="⚡ Connecter", fg_color=COLOR_ACCENT)
                     self.lbl_device_info.configure(text=f"🔴 Échec de connexion : {msg}", text_color="#FFA0A0")
                     self.set_status(f"Erreur: {msg}")
-
             self.after(0, _apply_ui)
 
         self.run_async(_task)

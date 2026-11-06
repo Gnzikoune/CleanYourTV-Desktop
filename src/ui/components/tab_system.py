@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class SystemTab:
-    """Component for speed optimizations, AdGuard DNS, and ADB lockdown."""
+    """Component for speed optimizations, AdGuard DNS toggle, and ADB lockdown."""
 
     def __init__(self, parent: Any, app: "MainWindow") -> None:
         self.parent = parent
@@ -53,16 +53,27 @@ class SystemTab:
             command=self._on_compile_aot
         )
 
-        # 3. Encrypted AdGuard DNS
-        self._create_row(
-            container,
-            title="🛡️ Bloqueur de Pubs & Traceurs (DNS AdGuard)",
-            desc="Active le DNS privé chiffré TLS sans aucune application supplémentaire requise.",
-            btn_text="Activer AdGuard",
-            btn_color="#107C41",
-            btn_hover="#0E6B38",
-            command=self._on_setup_dns
+        # 3. Encrypted AdGuard DNS with Dynamic Toggle
+        f_dns = ctk.CTkFrame(container, fg_color=COLOR_BG_SUB, corner_radius=8)
+        f_dns.pack(fill="x", padx=20, pady=6)
+        info_dns = ctk.CTkFrame(f_dns, fg_color="transparent")
+        info_dns.pack(side="left", padx=12, pady=10, fill="both", expand=True)
+        ctk.CTkLabel(
+            info_dns, text="🛡️ Bloqueur de Pubs (DNS AdGuard Chiffré)",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(anchor="w")
+        self.lbl_dns_desc = ctk.CTkLabel(
+            info_dns,
+            text="Active le DNS privé chiffré. À désactiver si YouTube ou le Play Store refuse de charger.",
+            font=ctk.CTkFont(size=11), text_color="#A0A0A0"
         )
+        self.lbl_dns_desc.pack(anchor="w")
+
+        self.btn_dns = ctk.CTkButton(
+            f_dns, text="Activer AdGuard", width=130, height=34, corner_radius=6,
+            fg_color="#107C41", hover_color="#0E6B38", command=self._on_toggle_dns
+        )
+        self.btn_dns.pack(side="right", padx=12)
 
         # 4. Security Audit
         f_audit = ctk.CTkFrame(container, fg_color=COLOR_BG_SUB, corner_radius=8)
@@ -143,10 +154,27 @@ class SystemTab:
             self.app.set_status(msg)
         self.app.run_async(_task)
 
-    def _on_setup_dns(self) -> None:
+    def _on_toggle_dns(self) -> None:
         def _task() -> None:
-            ok, msg = self.app.system_service.configure_adguard_dns()
+            is_active = self.app.system_service.is_adguard_active()
+            if is_active:
+                ok, msg = self.app.system_service.disable_private_dns()
+            else:
+                ok, msg = self.app.system_service.configure_adguard_dns()
+
+            def _refresh_btn() -> None:
+                new_state = not is_active
+                if new_state:
+                    self.btn_dns.configure(
+                        text="Désactiver AdGuard", fg_color=COLOR_DANGER, hover_color=COLOR_DANGER_HOVER
+                    )
+                else:
+                    self.btn_dns.configure(
+                        text="Activer AdGuard", fg_color="#107C41", hover_color="#0E6B38"
+                    )
+            self.app.after(0, _refresh_btn)
             self.app.set_status(msg)
+
         self.app.run_async(_task)
 
     def _on_audit(self) -> None:
@@ -155,6 +183,15 @@ class SystemTab:
             ok, msg, _ = self.app.system_service.audit_security()
             def _update() -> None:
                 self.lbl_audit.configure(text=msg, text_color="#4CC2FF")
+                # Synchronize DNS button with live state
+                if self.app.system_service.is_adguard_active():
+                    self.btn_dns.configure(
+                        text="Désactiver AdGuard", fg_color=COLOR_DANGER, hover_color=COLOR_DANGER_HOVER
+                    )
+                else:
+                    self.btn_dns.configure(
+                        text="Activer AdGuard", fg_color="#107C41", hover_color="#0E6B38"
+                    )
                 self.app.set_status("Audit de sécurité terminé.")
             self.app.after(0, _update)
         self.app.run_async(_task)

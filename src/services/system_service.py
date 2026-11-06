@@ -2,14 +2,14 @@
 System Performance & Security Management Domain Service
 """
 
-from typing import Tuple, List
+from typing import List, Tuple
 from src.infra.adb_client import AdbClient
 
 
 class SystemService:
     """Manages speed scaling, AOT precompilation, private DNS, and lockdowns."""
 
-    def __init__(self, adb: AdbClient):
+    def __init__(self, adb: AdbClient) -> None:
         self.adb = adb
 
     def set_animation_scale(self, scale: float = 0.5) -> Tuple[bool, str]:
@@ -24,7 +24,7 @@ class SystemService:
         """Force Ahead-Of-Time compilation to native machine code."""
         cmd = f"cmd package compile -m speed -f {target_package}"
         ok, out = self.adb.shell(cmd, timeout=30)
-        if ok and "success" in out.lower() or ok and not out.strip():
+        if ok and ("success" in out.lower() or not out.strip()):
             return True, f"Compilation AOT machine réussie pour '{target_package}'."
         return False, f"Retour compilation: {out.strip()}"
 
@@ -32,14 +32,25 @@ class SystemService:
         """Configure system-wide Private DNS over TLS with AdGuard."""
         self.adb.shell("settings put global private_dns_specifier dns.adguard-dns.com")
         self.adb.shell("settings put global private_dns_mode hostname")
-        return True, "DNS AdGuard actif (filtrage publicitaire système)."
+        return True, "DNS AdGuard actif (filtrage publicitaire activé)."
+
+    def disable_private_dns(self) -> Tuple[bool, str]:
+        """Disable Private DNS and restore default network routing (YouTube / Play Store)."""
+        self.adb.shell("settings put global private_dns_mode off")
+        return True, "DNS Privé désactivé (accès direct rétabli pour YouTube/Google)."
+
+    def is_adguard_active(self) -> bool:
+        """Check if private DNS is actively routing through AdGuard."""
+        _, mode = self.adb.shell("settings get global private_dns_mode")
+        _, spec = self.adb.shell("settings get global private_dns_specifier")
+        return "hostname" in mode and "adguard" in spec.lower()
 
     def audit_security(self) -> Tuple[bool, str, List[str]]:
         """Scan listening ports and verify DNS protection."""
         _, ports = self.adb.shell("cat /proc/net/tcp /proc/net/tcp6")
         _, dns_mode = self.adb.shell("settings get global private_dns_mode")
 
-        findings = []
+        findings: List[str] = []
         has_adb_open = ":15B3" in ports  # 5555 in hex
         has_adguard = "hostname" in dns_mode
         has_oneroom = ":8257" in ports   # 33367 in hex
@@ -52,7 +63,7 @@ class SystemService:
         if has_adguard:
             findings.append("🛡️ DNS AdGuard chiffré actif")
         else:
-            findings.append("⚠️ DNS standard sans filtrage")
+            findings.append("ℹ️ DNS par défaut (compatible YouTube/Store)")
 
         if not has_oneroom:
             findings.append("✅ Mouchard Transsion absent ou neutralisé")
