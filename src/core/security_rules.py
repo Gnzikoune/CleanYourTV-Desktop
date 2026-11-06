@@ -2,7 +2,7 @@
 Security Rules & Package Catalog Module
 """
 
-# Critical packages that must NEVER be disabled to prevent bootloops / bricking
+# Critical packages that must NEVER be disabled to prevent bootloops / broken auth
 PROTECTED_PACKAGES = {
     "android",
     "com.android.systemui",
@@ -24,6 +24,12 @@ PROTECTED_PACKAGES = {
     "com.google.android.inputmethod.latin",
     "com.liskovsoft.leankeyboard",
     "com.google.android.setupwraith",
+    # Google Ecosystem / Store / Auth Protection
+    "com.google.android.partnersetup",
+    "com.android.vending",
+    "com.google.android.gms",
+    "com.google.android.gsf",
+    "com.google.android.youtube.tv",
 }
 
 # Human-friendly labels for common Android TV packages
@@ -34,7 +40,7 @@ FRIENDLY_NAMES = {
     "com.google.android.play.games": "Google Play Jeux",
     "com.google.android.tvlauncher": "Launcher Android TV d'origine (Stock)",
     "com.google.android.feedback": "Google Feedback (Rapports plantage)",
-    "com.google.android.partnersetup": "Google Partner Setup",
+    "com.google.android.partnersetup": "Google Partner Setup (Requis pour Play Store)",
     "com.google.android.onetimeinitializer": "Google One-Time Initializer",
     "com.google.android.tvrecommendations": "Recommandations sponsorisées Google",
     "com.google.android.backdrop": "Écran de veille Google Backdrop",
@@ -48,42 +54,38 @@ FRIENDLY_NAMES = {
     "com.smartdevice.recommendation": "Bandeau publicitaire Daily Play",
     "com.smartdevice.acr.recommendation": "ACR (Reconnaissance de contenu à l'écran)",
     "com.smartdevice.leanbacklauncher.customizer": "Shop Customizer OEM",
-    "com.smartdevice.firewall": "Pare-feu & Télémétrie OEM",
-    "com.smartdevice.epopplayer": "Lecteur démo magasin e-POP",
-    "fusion.android.tv.demo": "Service démonstration magasin",
-    "com.Smartdevice.emanual": "Manuel interactif à l'écran",
-    "com.mstar.android.tv.disclaimercustomization": "Écran premier démarrage Mstar",
-    "android.autoinstalls.config.SW": "Play Auto-Installs OEM",
-    "com.smartdevice.tvworkwithalexa": "Liaison Alexa OEM",
-    "com.sky.market": "Boutique d'applications OEM",
-    "com.community.oneroom": "Module push arrière-plan Transsion",
+    "fusion.android.tv.demo": "Mode Démo Magasin (Fusion Demo)",
+    "com.sky.market": "App Store alternatif Skyworth",
+    "com.community.oneroom": "Bandeau promo OneRoom",
+    "com.smartdevice.epopplayer": "Lecteur Pop-up Pub Epop",
+    "com.smartdevice.tvworkwithalexa": "Service vocal Amazon Alexa",
+    "com.mstar.android.tv.disclaimercustomization": "MStar Disclaimer Telemetry",
+    "com.Smartdevice.emanual": "Manuel utilisateur interactif",
+    "com.smartdevice.firewall": "Firewall télémétrie constructeur",
 
-    # Xiaomi / Mi Box / PatchWall
-    "com.xiaomi.mitv.upgrade": "Mises à jour MiTV",
-    "com.mitv.gallery": "Galerie Xiaomi MiTV",
-    "com.xiaomi.mitv.advert": "Service publicitaire MiTV",
-    "com.xiaomi.mitv.payment": "Paiement MiTV",
-    "com.mitv.tvhome": "PatchWall Launcher Xiaomi",
-
-    # TCL Bloatware
-    "com.tcl.partnercustomizer": "Personnalisation partenaire TCL",
-    "com.tcl.videoplayer": "Lecteur vidéo TCL",
-    "com.tcl.waterfall.overseas": "TCL Channel / Recommandations",
-
-    # Common System Services
-    "com.android.printspooler": "Spooler d'impression",
-    "com.android.htmlviewer": "Visualiseur HTML",
-    "com.android.backupconfirm": "Confirmation sauvegarde système",
-    "com.android.sharedstoragebackup": "Sauvegarde stockage partagé",
+    # Safe System Tools
+    "com.android.printspooler": "Service d'impression papier",
+    "com.android.htmlviewer": "Afficheur de pages HTML",
     "com.android.wallpaperbackup": "Sauvegarde fond d'écran",
+    "com.android.backupconfirm": "Confirmation sauvegarde Cloud",
+    "com.android.sharedstoragebackup": "Sauvegarde stockage partagé",
+    "com.android.providers.calendar": "Fournisseur de calendrier",
 }
 
 
 def is_safe_to_disable(package_name: str) -> bool:
-    """Check if a package can be safely disabled without bricking the device."""
-    return package_name.strip() not in PROTECTED_PACKAGES
+    """Check if package is safe to freeze (not in critical protected list)."""
+    if package_name in PROTECTED_PACKAGES:
+        return False
+    return not (
+        package_name.startswith("com.android.providers.")
+        and "calendar" not in package_name
+    )
 
 
 def get_friendly_name(package_name: str) -> str:
-    """Return human readable label or package name fallback."""
-    return FRIENDLY_NAMES.get(package_name.strip(), package_name.strip())
+    """Return friendly label or fallback to formatted package identifier."""
+    if package_name in FRIENDLY_NAMES:
+        return FRIENDLY_NAMES[package_name]
+    parts = package_name.split(".")
+    return parts[-1].capitalize() if parts else package_name
