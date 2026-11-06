@@ -15,3 +15,6 @@ shots/
 venv/
 .venv/
 env/
+
+*.zip
+
