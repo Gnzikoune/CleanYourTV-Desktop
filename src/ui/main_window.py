@@ -17,6 +17,7 @@ from src.infra.adb_client import AdbClient
 from src.services.debloat_service import DebloatService
 from src.services.system_service import SystemService
 from src.services.screen_service import ScreenService
+from src.services.audio_service import AudioService
 from src.services.network_scanner import NetworkScannerService
 from src.services.update_checker import UpdateCheckerService
 from src.ui.components.tab_remote import RemoteTab
@@ -42,6 +43,7 @@ class MainWindow(ctk.CTk):
         self.debloat_service = DebloatService(self.adb)
         self.system_service = SystemService(self.adb)
         self.screen_service = ScreenService(self.adb)
+        self.audio_service = AudioService(self.adb)
 
         self.config = ConfigManager.load()
         self.connected_host: str = ""

@@ -33,8 +33,10 @@ class ScreenService:
                 return path
         return None
 
-    def start_mirroring(self, host: str, port: int = 5555) -> Tuple[bool, str]:
-        """Launch scrcpy 60 FPS live streaming window."""
+    def start_mirroring(
+        self, host: str, port: int = 5555, low_power: bool = True
+    ) -> Tuple[bool, str]:
+        """Launch scrcpy live streaming window with hardware-adapted profile."""
         scrcpy_path = self.locate_scrcpy()
         if not scrcpy_path:
             return False, "scrcpy n'a pas été trouvé (installez-le avec : winget install Genymobile.scrcpy)."
@@ -43,13 +45,27 @@ class ScreenService:
             scrcpy_path,
             f"--tcpip={host}:{port}",
             "--window-title=CleanYourTV Live Display",
-            "--max-size=1920"
         ]
+
+        if low_power:
+            # Profil Haute Fluidité pour Smart TV (720p, 30 FPS, 3 Mbps, no-audio pour CPU TV)
+            cmd.extend([
+                "--max-size=1280",
+                "--video-bit-rate=3M",
+                "--max-fps=30",
+                "--video-buffer=50",
+                "--no-audio"
+            ])
+            profile_name = "Fluide 720p 30 FPS (Anti-saccades)"
+        else:
+            cmd.extend(["--max-size=1920", "--video-bit-rate=8M"])
+            profile_name = "Full HD 1080p"
+
         try:
             flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
             scrcpy_dir = os.path.dirname(scrcpy_path)
             subprocess.Popen(cmd, cwd=scrcpy_dir if scrcpy_dir else None, creationflags=flags)
-            return True, "Fenêtre scrcpy 60 FPS ouverte avec succès."
+            return True, f"Miroir {profile_name} lancé avec succès."
         except Exception as e:
             return False, f"Erreur de lancement scrcpy: {e}"
 
