@@ -138,7 +138,7 @@ python -m venv venv
 pip install -r requirements.txt
 
 # 4. Launch the application
-python app.py
+python main.py
 ```
 
 ---
@@ -153,7 +153,7 @@ pyinstaller --noconfirm --onedir --windowed `
   --icon="assets/icon.ico" `
   --add-data "assets;assets" `
   --name="CleanYourTV-Manager" `
-  app.py
+  main.py
 ```
 
 The compiled output will be generated inside `dist/CleanYourTV-Manager/`.

@@ -138,7 +138,7 @@ python -m venv venv
 pip install -r requirements.txt
 
 # 4. Lancer le gestionnaire
-python app.py
+python main.py
 ```
 
 ---
@@ -153,7 +153,7 @@ pyinstaller --noconfirm --onedir --windowed `
   --icon="assets/icon.ico" `
   --add-data "assets;assets" `
   --name="CleanYourTV-Manager" `
-  app.py
+  main.py
 ```
 
 Le programme compilé sera généré dans `dist/CleanYourTV-Manager/`.
@@ -237,3 +237,4 @@ Les contributions, suggestions d'améliorations et signalements de bugs sont les
 
 - **Licence :** Distribué sous licence open-source **[MIT](LICENSE)**.
 - **Communauté :** Développé comme outil compagnon pour l'initiative mondiale **[CleanYourTV](https://github.com/Gathin23/cleanyourtv)**.
+
