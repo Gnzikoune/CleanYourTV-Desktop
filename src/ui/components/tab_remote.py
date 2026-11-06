@@ -37,14 +37,42 @@ class RemoteTab:
             font=ctk.CTkFont(size=13, weight="bold"), fg_color=COLOR_ACCENT, hover_color=COLOR_ACCENT_HOVER,
             corner_radius=8, command=self._on_launch_mirror
         )
-        btn_scrcpy.pack(fill="x", padx=16, pady=6)
+        btn_scrcpy.pack(fill="x", padx=16, pady=(6, 2))
+
+        self.switch_low_power = ctk.CTkSwitch(
+            col_left, text="Profil Fluide TV (720p 30 FPS anti-saccades)",
+            font=ctk.CTkFont(size=11), onvalue=True, offvalue=False
+        )
+        self.switch_low_power.select()
+        self.switch_low_power.pack(fill="x", padx=18, pady=(0, 4))
 
         btn_shot = ctk.CTkButton(
-            col_left, text="📸 Prendre une Capture d'Écran", height=36,
-            font=ctk.CTkFont(size=13), fg_color="#333333", hover_color="#444444",
+            col_left, text="📸 Prendre une Capture d'Écran", height=32,
+            font=ctk.CTkFont(size=12), fg_color="#333333", hover_color="#444444",
             corner_radius=8, command=self._on_take_screenshot
         )
-        btn_shot.pack(fill="x", padx=16, pady=6)
+        btn_shot.pack(fill="x", padx=16, pady=4)
+
+        # Audio Streaming Box (Simultaneous TV + PC playback over LAN & Tailscale)
+        audio_box = ctk.CTkFrame(col_left, fg_color=COLOR_BG_SUB, corner_radius=8)
+        audio_box.pack(fill="x", padx=16, pady=(6, 6))
+        ctk.CTkLabel(
+            audio_box, text="🔊 Audio TV ➔ PC (Local & Tailscale)",
+            font=ctk.CTkFont(size=11, weight="bold")
+        ).pack(anchor="w", padx=10, pady=(6, 2))
+
+        a_row = ctk.CTkFrame(audio_box, fg_color="transparent")
+        a_row.pack(fill="x", padx=10, pady=(2, 6))
+        ctk.CTkButton(
+            a_row, text="▶ Écouter sur PC", height=28, corner_radius=6,
+            fg_color="#005FB8", hover_color="#004A94", font=ctk.CTkFont(size=11),
+            command=self._on_listen_audio
+        ).pack(side="left", fill="x", expand=True, padx=(0, 3))
+        ctk.CTkButton(
+            a_row, text="📱 Ouvrir sur TV", height=28, corner_radius=6,
+            fg_color="#383838", hover_color="#444444", font=ctk.CTkFont(size=11),
+            command=self._on_setup_tv_audio
+        ).pack(side="right", fill="x", expand=True, padx=(3, 0))
 
         # Clipboard Box
         clip_box = ctk.CTkFrame(col_left, fg_color=COLOR_BG_SUB, corner_radius=8)
@@ -88,10 +116,7 @@ class RemoteTab:
         ).pack(side="right")
 
         # Right Column: Virtual D-Pad Remote
-        ctk.CTkLabel(
-            col_right, text="Télécommande Virtuelle",
-            font=ctk.CTkFont(size=16, weight="bold")
-        ).pack(padx=16, pady=(16, 12))
+        ctk.CTkLabel(col_right, text="Télécommande Virtuelle", font=ctk.CTkFont(size=16, weight="bold")).pack(padx=16, pady=(16, 12))
 
         dpad = ctk.CTkFrame(col_right, fg_color="transparent")
         dpad.pack(pady=8)
@@ -148,15 +173,27 @@ class RemoteTab:
 
     def _on_launch_mirror(self) -> None:
         host = self.app.connected_host or self.app.entry_ip.get().strip()
-        ok, msg = self.app.screen_service.start_mirroring(host)
+        low_p = bool(self.switch_low_power.get())
+        ok, msg = self.app.screen_service.start_mirroring(host, low_power=low_p)
         self.app.set_status(msg)
+
+    def _on_listen_audio(self) -> None:
+        host = self.app.connected_host or self.app.entry_ip.get().strip()
+        ok, msg = self.app.audio_service.launch_pc_client(host)
+        self.app.set_status(msg)
+
+    def _on_setup_tv_audio(self) -> None:
+        def _task() -> None:
+            installed, _ = self.app.audio_service.is_tv_agent_installed()
+            ok, msg = self.app.audio_service.start_tv_agent() if installed else self.app.audio_service.open_playstore_on_tv()
+            self.app.set_status(msg)
+        self.app.run_async(_task)
 
     def _on_take_screenshot(self) -> None:
         def _task() -> None:
             self.app.set_status("Capture d'écran en cours...")
             ok, msg, path = self.app.screen_service.capture_screenshot()
             self.app.set_status(msg)
-            if ok and path:
-                if hasattr(os, "startfile"):
-                    getattr(os, "startfile")(path)
+            if ok and path and hasattr(os, "startfile"):
+                getattr(os, "startfile")(path)
         self.app.run_async(_task)
